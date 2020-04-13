@@ -1,0 +1,41 @@
+# SIMPLE SERVER ASSIGMENT
+
+## Running the script with naive stats db store to sqlite (windows)
+- virtualenv env
+- .\env\Scripts\activate.bat
+- pip install -r requirements
+- python server.py [python server.py -i data/input-0.json -d SQLITE, -a NAIVE]
+- service should be available at 127.0.0.1:5000
+
+to run with queue based db store option also setup rabbitmq 
+- install erlang
+- install rabbitmq
+- initiate celery worker:
+    celery -A server.celery worker --pool=gevent
+- run server:
+    python server.py -i data/input-0.json -d SQLITE, -a QUEUEBASED
+
+to run with mysql db option please set up mysql first
+- install mysql
+- add db as_servicedb
+- add user guest with passwd guest 
+- run server:
+    python server.py -i data/input-0.json -d MYSQL, -a NAIVE
+
+Note: all the architectures (-a) worrks given the right setup besides THREADBASED which got buggy somehow
+
+## Implementation assumptions and clarifications
+
+- Static nature of network architecture is assumed (vms and fw_rules)
+- Thus using initial precomputation of attack surface for all vms seems as a good idea. (1k vms will take just around 1k*1k*n byte dict - n Mbytes)
+- Thus python dict was used to store attack surface data
+- If network architecture is rarely changed some kind of db should be used to ensure multi thread availability of changing attack surface
+- If network architecture is changed frequently some graph db should be used to easily apply new fw_rules and remove the old ones
+
+- for request processing statistics db was used. All statistics are saved and the avg and requests count are extracted using sql query
+- sqlite was used for simplicity of implementation, mysql was used for better scalability
+- writes to db can be done in three ways:
+    -- Naive - blocking write initiated on statistic computation (most simple implementation)
+    -- Thread based - Spawned threads for writes to db (spare time on request processing)
+    -- Task queue based - Celery tasks initiated for writes to db (spare time on request processing, also hightly scalable)
+- for further scalability a proper WSGI server should be introduced to serve flask app
